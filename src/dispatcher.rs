@@ -27,7 +27,6 @@ impl Specialization {
         vis: &Visibility,
         sig: &Signature,
         attrs: &[Attribute],
-        associated: bool,
     ) -> Result<Vec<ItemFn>> {
         let target_string = self.target.target_string();
         let fn_name = feature_fn_name(&sig.ident, Some(&self.target));
@@ -104,7 +103,7 @@ impl Dispatcher {
     fn feature_fns(&self) -> Result<Vec<ItemFn>> {
         let mut fns = Vec::new();
         for f in &self.specializations {
-            fns.extend(f.make_fn(&self.vis, &self.sig, &self.attrs, self.associated)?);
+            fns.extend(f.make_fn(&self.vis, &self.sig, &self.attrs)?);
         }
 
         // Create default fn

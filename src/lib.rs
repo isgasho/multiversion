@@ -191,7 +191,6 @@ mod meta;
 
 mod dispatcher;
 mod multiversion;
-mod safe_inner;
 mod static_dispatch;
 mod target;
 mod target_cfg;
@@ -382,9 +381,6 @@ pub fn multiversion(
 /// to produce hand-written multiversioned functions.
 ///
 /// # Helper attributes
-/// * `#[safe_inner]`
-///   * Indicates that the inner contents of the function are safe and requires the use of `unsafe`
-///     blocks to call `unsafe` functions.
 /// * `#[static_dispatch]`
 ///   * Statically dispatches a multiversioned function, see [static dispatching].
 ///

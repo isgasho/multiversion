@@ -1,4 +1,3 @@
-use crate::safe_inner::process_safe_inner;
 use crate::static_dispatch::process_static_dispatch;
 use crate::target_cfg::process_target_cfg;
 use proc_macro2::{Span, TokenStream};
@@ -219,8 +218,7 @@ pub(crate) fn make_target_fn(target: Option<Lit>, mut func: ItemFn) -> Result<To
         let target_feature = target.target_feature();
         func = parse_quote! { #target_arch #(#target_feature)* #func };
     }
-    let functions = process_safe_inner(func)?;
-    Ok(quote! { #(#functions)* })
+    Ok(quote! { #func })
 }
 
 #[cfg(test)]
