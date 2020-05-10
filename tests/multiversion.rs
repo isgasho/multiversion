@@ -1,3 +1,4 @@
+#![feature(target_feature_11)]
 use multiversion::{multiversion, target};
 
 #[target("x86_64+avx2")]

@@ -1,3 +1,5 @@
+#![feature(target_feature_11)]
+
 #[rustversion::since(1.39)]
 #[multiversion::multiversion]
 #[clone(target = "[x86|x86_64]+avx")]

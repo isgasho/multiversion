@@ -58,6 +58,7 @@
 //! and detecting which to use at runtime. If none of the targets match the current CPU (e.g. an older
 //! x86-64 CPU, or another architecture such as ARM), a clone without any features enabled is used.
 //! ```
+//! # #![feature(target_feature_11)]
 //! use multiversion::multiversion;
 //!
 //! #[multiversion]
@@ -75,6 +76,7 @@
 //! aren't identical, such as when using explicit SIMD instructions instead of relying on compiler
 //! optimizations.
 //! ```
+//! # #![feature(target_feature_11)]
 //! use multiversion::{multiversion, target};
 //!
 //! #[target("[x86|x86_64]+avx")]
@@ -122,6 +124,7 @@
 //! * The receiver (`self`, `&self`, etc.) must be provided as the first argument to the statically
 //!   dispatched function, e.g. `foo(bar)` rather than `bar.foo()`.
 //! ```
+//! # #![feature(target_feature_11)]
 //! # mod fix { // doctests do something weird with modules, this fixes it
 //! use multiversion::multiversion;
 //!
@@ -160,6 +163,7 @@
 //! the function's target
 //!
 //! ```
+//! # #![feature(target_feature_11)]
 //! #[multiversion::multiversion]
 //! #[clone(target = "[x86|x86_64]+avx")]
 //! #[clone(target = "[arm|aarch64]+neon")]
@@ -226,6 +230,7 @@ use syn::{parse::Nothing, parse_macro_input, ItemFn};
 /// The following compiles `square` three times, once for each target and once for the generic
 /// target.  Calling `square` selects the appropriate version at runtime.
 /// ```
+/// # #![feature(target_feature_11)]
 /// use multiversion::multiversion;
 ///
 /// #[multiversion]
@@ -241,6 +246,7 @@ use syn::{parse::Nothing, parse_macro_input, ItemFn};
 /// ## Specialization
 /// This example creates a function `where_am_i` that prints the detected CPU feature.
 /// ```
+/// # #![feature(target_feature_11)]
 /// use multiversion::multiversion;
 ///
 /// fn where_am_i_avx() {
@@ -270,6 +276,7 @@ use syn::{parse::Nothing, parse_macro_input, ItemFn};
 /// that the `where_am_i` function is still safe, since we know we are only calling specialized
 /// functions on supported CPUs.
 /// ```
+/// # #![feature(target_feature_11)]
 /// use multiversion::{multiversion, target};
 ///
 /// #[target("[x86|x86_64]+avx")]
@@ -315,6 +322,7 @@ use syn::{parse::Nothing, parse_macro_input, ItemFn};
 ///
 /// The following creates two functions, `foo_avx_sse41_version` and `foo_default_version`.
 /// ```
+/// # #![feature(target_feature_11)]
 /// #[multiversion::multiversion]
 /// #[clone(target = "[x86|x86_64]+sse4.1+avx")]
 /// fn foo() {}

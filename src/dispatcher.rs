@@ -3,20 +3,16 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::{parse_quote, Attribute, Block, Ident, ItemFn, Result, Signature, Visibility};
 
-pub(crate) fn feature_fn_name(ident: &Ident, target: Option<&Target>) -> (Ident, Ident) {
+pub(crate) fn feature_fn_name(ident: &Ident, target: Option<&Target>) -> Ident {
     if let Some(target) = target {
         if target.has_features_specified() {
             let base = format!("{}_{}", ident, target.features_string());
-            return (
-                Ident::new(&format!("{}_version", base), ident.span()),
-                Ident::new(&format!("__{}_static_dispatch", base), ident.span()),
-            );
+            return Ident::new(&format!("{}_version", base), ident.span());
         }
     }
 
     // If this is a default fn, it doesn't have a dedicated static dispatcher
-    let default = Ident::new(&format!("{}_default_version", ident), ident.span());
-    (default.clone(), default)
+    Ident::new(&format!("{}_default_version", ident), ident.span())
 }
 
 pub(crate) struct Specialization {
@@ -34,7 +30,7 @@ impl Specialization {
         associated: bool,
     ) -> Result<Vec<ItemFn>> {
         let target_string = self.target.target_string();
-        let (fn_name, dispatch_fn_name) = feature_fn_name(&sig.ident, Some(&self.target));
+        let fn_name = feature_fn_name(&sig.ident, Some(&self.target));
 
         let mut target_attrs = Vec::new();
         target_attrs.push(parse_quote! { #[multiversion::target(#target_string)] });
@@ -44,17 +40,9 @@ impl Specialization {
 
         // If this target doesn't have any features, treat it as a default version
         if self.target.has_features_specified() {
-            // if the original function is safe, tag it with #[safe_inner]
-            if sig.unsafety.is_none() {
-                target_attrs.push(parse_quote! { #[safe_inner] });
-            }
-
-            // create unsafe/target fn
-            let fn_params = crate::util::fn_params(&sig);
-            let maybe_await = sig.asyncness.map(|_| util::await_tokens());
-            let unsafe_sig = Signature {
+            // create target fn
+            let target_sig = Signature {
                 ident: fn_name,
-                unsafety: parse_quote! { unsafe },
                 ..if self.normalize {
                     crate::util::normalize_signature(sig).0
                 } else {
@@ -64,37 +52,10 @@ impl Specialization {
             let target_fn = ItemFn {
                 attrs: target_attrs,
                 vis: vis.clone(),
-                sig: unsafe_sig,
+                sig: target_sig,
                 block: Box::new(self.block.clone()),
             };
-
-            // create safe/dispatch fn
-            let (outer_sig, args) = util::normalize_signature(sig);
-            let outer_sig = Signature {
-                ident: dispatch_fn_name,
-                ..outer_sig
-            };
-            let target_fn_ident = &target_fn.sig.ident;
-            let maybe_self = if associated {
-                quote! { Self:: }
-            } else {
-                Default::default()
-            };
-            let dispatch_fn = ItemFn {
-                attrs: vec![
-                    parse_quote! { #[inline(always)] },
-                    parse_quote! { #[doc(hidden)] },
-                    self.target.target_arch(),
-                ],
-                vis: vis.clone(),
-                block: Box::new(parse_quote! {
-                    {
-                        unsafe { #maybe_self#target_fn_ident::<#(#fn_params),*>(#(#args),*)#maybe_await }
-                    }
-                }),
-                sig: outer_sig,
-            };
-            Ok(vec![dispatch_fn, target_fn])
+            Ok(vec![target_fn])
         } else {
             Ok(vec![ItemFn {
                 attrs: target_attrs,
@@ -157,7 +118,7 @@ impl Dispatcher {
                 attrs,
                 vis: self.vis.clone(),
                 sig: Signature {
-                    ident: feature_fn_name(&self.sig.ident, None).1,
+                    ident: feature_fn_name(&self.sig.ident, None),
                     ..self.sig.clone()
                 },
                 block: Box::new(self.default.clone()),
@@ -182,7 +143,8 @@ impl Dispatcher {
             //   * the function is not async
             //   * the function does not take or return an impl trait
             //   * the function is not associated
-            let fn_ty = util::fn_type_from_signature(&self.sig)?;
+            let mut fn_ty = util::fn_type_from_signature(&self.sig)?;
+            fn_ty.unsafety = fn_ty.unsafety.or(Some(parse_quote! { unsafe }));
             let feature_detection = {
                 let return_if_detected =
                     self.specializations
@@ -191,7 +153,7 @@ impl Dispatcher {
                             if target.has_features_specified() {
                                 let target_arch = target.target_arch();
                                 let features_detected = target.features_detected();
-                                let function = feature_fn_name(&self.sig.ident, Some(&target)).1;
+                                let function = feature_fn_name(&self.sig.ident, Some(&target));
                                 Some(quote! {
                                     #target_arch
                                     {
@@ -204,7 +166,7 @@ impl Dispatcher {
                                 None
                             }
                         });
-                let default_fn = feature_fn_name(&self.sig.ident, None).1;
+                let default_fn = feature_fn_name(&self.sig.ident, None);
                 quote! {
                     fn __get_fn<#(#fn_params),*>() -> #fn_ty {
                         #(#return_if_detected)*
@@ -214,6 +176,9 @@ impl Dispatcher {
             };
             let resolver_signature = Signature {
                 ident: Ident::new("__resolver_fn", Span::call_site()),
+                unsafety: normalized_signature
+                    .unsafety
+                    .or(Some(parse_quote! { unsafe })),
                 ..normalized_signature.clone()
             };
             parse_quote! {
@@ -250,12 +215,12 @@ impl Dispatcher {
                         if target.has_features_specified() {
                             let target_arch = target.target_arch();
                             let features_detected = target.features_detected();
-                            let function = feature_fn_name(&self.sig.ident, Some(&target)).1;
+                            let function = feature_fn_name(&self.sig.ident, Some(&target));
                             Some(quote! {
                                 #target_arch
                                 {
                                     if #features_detected {
-                                        return #maybe_self#function::<#(#fn_params),*>(#(#argument_names),*)#maybe_await
+                                        return unsafe { #maybe_self#function::<#(#fn_params),*>(#(#argument_names),*)#maybe_await }
                                     }
                                 }
                             })
@@ -263,7 +228,7 @@ impl Dispatcher {
                             None
                         }
                     });
-            let default_fn = feature_fn_name(&self.sig.ident, None).1;
+            let default_fn = feature_fn_name(&self.sig.ident, None);
             parse_quote! {
                 {
                     #(#return_if_detected)*

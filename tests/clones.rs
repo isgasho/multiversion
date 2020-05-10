@@ -1,3 +1,5 @@
+#![feature(target_feature_11)]
+
 use multiversion::multiversion;
 
 #[multiversion]

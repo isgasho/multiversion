@@ -1,3 +1,5 @@
+#![feature(target_feature_11)]
+
 mod foo {
     #[multiversion::multiversion]
     #[clone(target = "[x86|x86_64]+avx")]

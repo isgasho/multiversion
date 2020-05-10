@@ -1,3 +1,5 @@
+#![feature(target_feature_11)]
+
 #[multiversion::multiversion]
 #[clone(target = "[x86|x86_64]+avx2+avx")]
 #[clone(target = "[x86|x86_64]+avx")]

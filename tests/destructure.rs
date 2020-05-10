@@ -1,3 +1,5 @@
+#![feature(target_feature_11)]
+
 struct Foo {
     bar: i64,
     baz: i64,
